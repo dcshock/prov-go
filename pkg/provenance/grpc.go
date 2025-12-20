@@ -71,17 +71,23 @@ func (c *GRPCConnection) Close() error {
 	return c.Conn.Close()
 }
 
-// Create a new tx config with the appropriate provenance interfaces registered
-func NewTxConfig() client.TxConfig {
+func Codec() *codec.ProtoCodec {
 	reg := codectypes.NewInterfaceRegistry()
+
 	cryptocodec.RegisterInterfaces(reg)
 	marker.RegisterInterfaces(reg)
 	meta.RegisterInterfaces(reg)
 	banktypes.RegisterInterfaces(reg)
 	attrtypes.RegisterInterfaces(reg)
 	registry.RegisterInterfaces(reg)
+
 	cdc := codec.NewProtoCodec(reg)
-	txConfig := authtx.NewTxConfig(cdc, authtx.DefaultSignModes)
+	return cdc
+}
+
+// Create a new tx config with the appropriate provenance interfaces registered
+func NewTxConfig() client.TxConfig {
+	txConfig := authtx.NewTxConfig(Codec(), authtx.DefaultSignModes)
 	return txConfig
 }
 

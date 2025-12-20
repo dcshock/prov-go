@@ -7,11 +7,9 @@ import (
 	"sync"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	marker "github.com/provenance-io/provenance/x/marker/types"
 
 	ants "github.com/panjf2000/ants/v2"
 )
@@ -44,14 +42,10 @@ func NewProvenanceClient(blockchainConfig BlockchainConfigProvider, mnemonicFile
 		return nil, fmt.Errorf("error creating gRPC connection: %w", err)
 	}
 
-	registry := codectypes.NewInterfaceRegistry()
-	marker.RegisterInterfaces(registry)
-	cdc := codec.NewProtoCodec(registry)
-
 	config := ProvenanceClient{
 		Grpc:     grpc,
 		BcConfig: blockchainConfig,
-		Cdc:      cdc,
+		Cdc:      Codec(),
 		mu:       sync.Mutex{},
 	}
 
