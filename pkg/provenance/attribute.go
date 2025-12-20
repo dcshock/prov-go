@@ -57,7 +57,7 @@ func (c *ProvenanceClient) AddAttributes(attrs []Attribute) (chan *tx.BroadcastT
 			if len(buff) == 75 || (closed && len(buff) > 0) {
 				// Attribute additions require 10_000_000_000 additional fee
 				txFee := int64(10_000_000_000) * int64(len(buff))
-				txBz, err := c.Grpc.SignTx(buff, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), txFee)
+				txBz, err := c.SignTx(buff, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), txFee)
 
 				// Clear the buffer
 				buff = []sdk.Msg{}
@@ -68,7 +68,7 @@ func (c *ProvenanceClient) AddAttributes(attrs []Attribute) (chan *tx.BroadcastT
 				}
 
 				renderer.SetCurrent(fmt.Sprintf("Sending tx with %d attributes", len(buff)))
-				resp, err := c.Grpc.BroadcastTx(txBz)
+				resp, err := c.BroadcastTx(txBz)
 				if err != nil {
 					attrErrChan <- err
 					continue

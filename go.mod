@@ -3,6 +3,7 @@ module github.com/dcshock/prov-go
 go 1.24.5
 
 require (
+	cosmossdk.io/api v0.7.6
 	github.com/cosmos/cosmos-sdk v0.50.10
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/google/uuid v1.6.0
@@ -12,7 +13,6 @@ require (
 )
 
 require (
-	cosmossdk.io/api v0.7.6 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/core v0.11.2 // indirect
 	cosmossdk.io/depinject v1.1.0 // indirect

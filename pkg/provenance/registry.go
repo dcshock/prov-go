@@ -14,12 +14,12 @@ func (c *ProvenanceClient) RegistryBulkUpdate(entries []registry.RegistryEntry) 
 		Entries: entries,
 	}
 
-	txBz, err := c.Grpc.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
+	txBz, err := c.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tx: %w", err)
 	}
 
-	resp, err := c.Grpc.BroadcastTx(txBz)
+	resp, err := c.BroadcastTx(txBz)
 	if err != nil {
 		return nil, fmt.Errorf("error broadcasting transaction: %w", err)
 	}
