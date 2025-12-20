@@ -34,8 +34,7 @@ type MarkerValueResult struct {
 }
 
 func (c *ProvenanceClient) GetMarker(denomOrAddress string) (*marker.MarkerAccountI, error) {
-	markerClient := marker.NewQueryClient(c.Grpc.Conn)
-	res, err := markerClient.Marker(context.Background(), &marker.QueryMarkerRequest{
+	res, err := (*c.MarkerClient()).Marker(context.Background(), &marker.QueryMarkerRequest{
 		Id: denomOrAddress,
 	})
 
@@ -88,10 +87,9 @@ func (c *ProvenanceClient) GetAccountValue(addressOrDenom string) (*AccountValue
 		close(totalChan)
 	}()
 
-	bankClient := banktypes.NewQueryClient(c.Grpc.Conn)
 	nextKey := []byte(nil)
 	for {
-		bankRes, err := bankClient.AllBalances(context.Background(), &banktypes.QueryAllBalancesRequest{
+		bankRes, err := (*c.BankClient()).AllBalances(context.Background(), &banktypes.QueryAllBalancesRequest{
 			Address: addressOrDenom,
 			Pagination: &query.PageRequest{
 				Key:        nextKey,

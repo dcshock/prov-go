@@ -10,8 +10,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	ants "github.com/panjf2000/ants/v2"
+	attrtypes "github.com/provenance-io/provenance/x/attribute/types"
+	marker "github.com/provenance-io/provenance/x/marker/types"
+	meta "github.com/provenance-io/provenance/x/metadata/types"
 )
 
 type ProvenanceClient struct {
@@ -24,6 +27,12 @@ type ProvenanceClient struct {
 	Sequence      uint64
 	Pool          *ants.Pool
 	mu            sync.Mutex
+
+	authClient      *authtypes.QueryClient
+	attributeClient *attrtypes.QueryClient
+	bankClient      *banktypes.QueryClient
+	markerClient    *marker.QueryClient
+	metadataClient  *meta.QueryClient
 }
 
 func (c *ProvenanceClient) NextSequence() uint64 {
@@ -78,14 +87,71 @@ func NewProvenanceClient(blockchainConfig BlockchainConfigProvider, mnemonicFile
 	return &config, nil
 }
 
+func (c *ProvenanceClient) AuthClient() *authtypes.QueryClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.authClient == nil {
+		qc := authtypes.NewQueryClient(c.Grpc.Conn)
+		c.authClient = &qc
+	}
+	return c.authClient
+}
+
+// Attribute client
+func (c *ProvenanceClient) AttributeClient() *attrtypes.QueryClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.attributeClient == nil {
+		qc := attrtypes.NewQueryClient(c.Grpc.Conn)
+		c.attributeClient = &qc
+	}
+	return c.attributeClient
+}
+
+func (c *ProvenanceClient) BankClient() *banktypes.QueryClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.bankClient == nil {
+		qc := banktypes.NewQueryClient(c.Grpc.Conn)
+		c.bankClient = &qc
+	}
+	return c.bankClient
+}
+
+// Marker client
+func (c *ProvenanceClient) MarkerClient() *marker.QueryClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.markerClient == nil {
+		qc := marker.NewQueryClient(c.Grpc.Conn)
+		c.markerClient = &qc
+	}
+	return c.markerClient
+}
+
+// Metadata client
+func (c *ProvenanceClient) MetadataClient() *meta.QueryClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.metadataClient == nil {
+		qc := meta.NewQueryClient(c.Grpc.Conn)
+		c.metadataClient = &qc
+	}
+	return c.metadataClient
+}
+
 func (c *ProvenanceClient) Close() {
 	c.Grpc.Close()
 }
 
 // Returns the account number and sequence for the given address
 func (c *ProvenanceClient) GetAccountInfo(address string) (uint64, uint64, error) {
-	authClient := authtypes.NewQueryClient(c.Grpc.Conn)
-	res, err := authClient.Account(context.Background(), &authtypes.QueryAccountRequest{
+	res, err := (*c.AuthClient()).Account(context.Background(), &authtypes.QueryAccountRequest{
 		Address: address,
 	})
 	if err != nil {

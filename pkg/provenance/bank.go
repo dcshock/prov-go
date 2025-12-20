@@ -9,16 +9,14 @@ import (
 )
 
 func (c *ProvenanceClient) GetBalance(address string) ([]sdk.Coin, error) {
-	bankClient := banktypes.NewQueryClient(c.Grpc.Conn)
-
 	nextKey := []byte(nil)
 	balances := []sdk.Coin{}
 	for {
-		bankRes, err := bankClient.AllBalances(context.Background(), &banktypes.QueryAllBalancesRequest{
+		bankRes, err := (*c.BankClient()).AllBalances(context.Background(), &banktypes.QueryAllBalancesRequest{
 			Address: address,
 			Pagination: &query.PageRequest{
 				Key:        nextKey,
-				Limit:      100, // adjust as needed
+				Limit:      100,
 				CountTotal: false,
 			},
 		})

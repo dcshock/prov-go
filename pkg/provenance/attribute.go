@@ -129,8 +129,7 @@ func (c *ProvenanceClient) GetAttributes(attrName, acct string) ([]attrtypes.Att
 		Name:    attrName,
 	}
 
-	attrClient := attrtypes.NewQueryClient(c.Grpc.Conn)
-	res, err := attrClient.Attribute(context.Background(), &query)
+	res, err := (*c.AttributeClient()).Attribute(context.Background(), &query)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +138,6 @@ func (c *ProvenanceClient) GetAttributes(attrName, acct string) ([]attrtypes.Att
 }
 
 func (c *ProvenanceClient) GetAttributedAccounts(name string) ([]string, error) {
-	attrClient := attrtypes.NewQueryClient(c.Grpc.Conn)
-
 	accounts := []string{}
 	nextKey := []byte(nil)
 	for {
@@ -153,7 +150,7 @@ func (c *ProvenanceClient) GetAttributedAccounts(name string) ([]string, error) 
 			},
 		}
 
-		res, err := attrClient.AttributeAccounts(context.Background(), &query)
+		res, err := (*c.AttributeClient()).AttributeAccounts(context.Background(), &query)
 		if err != nil {
 			return nil, err
 		}

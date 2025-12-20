@@ -77,8 +77,7 @@ func (c *ProvenanceClient) UpdateRecords(session *meta.MsgWriteSessionRequest, r
 
 // Get the NAV for a given scope
 func (c *ProvenanceClient) GetNAV(scopeId string) (*meta.NetAssetValue, error) {
-	metaClient := meta.NewQueryClient(c.Grpc.Conn)
-	res, err := metaClient.ScopeNetAssetValues(context.Background(), &meta.QueryScopeNetAssetValuesRequest{
+	res, err := (*c.MetadataClient()).ScopeNetAssetValues(context.Background(), &meta.QueryScopeNetAssetValuesRequest{
 		Id: scopeId,
 	})
 	if err != nil {
@@ -95,8 +94,7 @@ func (c *ProvenanceClient) GetNAV(scopeId string) (*meta.NetAssetValue, error) {
 }
 
 func (c *ProvenanceClient) GetContractSpec(specId string) (*meta.ContractSpecification, error) {
-	metaClient := meta.NewQueryClient(c.Grpc.Conn)
-	res, err := metaClient.ContractSpecification(context.Background(), &meta.ContractSpecificationRequest{
+	res, err := (*c.MetadataClient()).ContractSpecification(context.Background(), &meta.ContractSpecificationRequest{
 		SpecificationId:    specId,
 		IncludeRecordSpecs: false,
 	})
@@ -108,8 +106,7 @@ func (c *ProvenanceClient) GetContractSpec(specId string) (*meta.ContractSpecifi
 }
 
 func (c *ProvenanceClient) GetScopeSpec(specId string) (*meta.ScopeSpecification, error) {
-	metaClient := meta.NewQueryClient(c.Grpc.Conn)
-	res, err := metaClient.ScopeSpecification(context.Background(), &meta.ScopeSpecificationRequest{
+	res, err := (*c.MetadataClient()).ScopeSpecification(context.Background(), &meta.ScopeSpecificationRequest{
 		SpecificationId:      specId,
 		IncludeContractSpecs: false,
 		IncludeRecordSpecs:   false,
@@ -124,8 +121,7 @@ func (c *ProvenanceClient) GetScopeSpec(specId string) (*meta.ScopeSpecification
 func (c *ProvenanceClient) GetRecordSpec(contractSpecUUID string, recordName string) (*meta.RecordSpecification, error) {
 	specId := meta.RecordSpecMetadataAddress(uuid.MustParse(contractSpecUUID), recordName)
 
-	metaClient := meta.NewQueryClient(c.Grpc.Conn)
-	res, err := metaClient.RecordSpecification(context.Background(), &meta.RecordSpecificationRequest{
+	res, err := (*c.MetadataClient()).RecordSpecification(context.Background(), &meta.RecordSpecificationRequest{
 		SpecificationId: specId.String(),
 	})
 	if err != nil {
@@ -136,8 +132,7 @@ func (c *ProvenanceClient) GetRecordSpec(contractSpecUUID string, recordName str
 }
 
 func (c *ProvenanceClient) GetScope(scopeUuid string) (*meta.Scope, error) {
-	metaClient := meta.NewQueryClient(c.Grpc.Conn)
-	res, err := metaClient.Scope(context.Background(), &meta.ScopeRequest{
+	res, err := (*c.MetadataClient()).Scope(context.Background(), &meta.ScopeRequest{
 		ScopeId: scopeUuid,
 	})
 	if err != nil {
