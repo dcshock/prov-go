@@ -16,8 +16,7 @@ func main() {
 	defer p.Close()
 
 	syncBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
-
-	streamBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
+	// streamBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
 }
 
 func syncBalances(p *provenance.ProvenanceClient, address string) {

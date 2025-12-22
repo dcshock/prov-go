@@ -150,7 +150,9 @@ func (c *ProvenanceClient) GetAttributes(ctx context.Context, attrName, acct str
 			}
 			attributes = append(attributes, attribute)
 		case err := <-errChan:
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 }
@@ -258,7 +260,9 @@ func (c *ProvenanceClient) GetAttributedAccounts(ctx context.Context, name strin
 			}
 			accounts = append(accounts, account)
 		case err := <-errChan:
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 }

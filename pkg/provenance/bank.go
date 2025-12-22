@@ -34,7 +34,9 @@ func (c *ProvenanceClient) GetBalances(ctx context.Context, address string) ([]s
 			}
 			balances = append(balances, balance)
 		case err := <-errChan:
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 }
