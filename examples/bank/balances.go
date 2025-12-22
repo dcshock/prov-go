@@ -15,10 +15,18 @@ func main() {
 	}
 	defer p.Close()
 
+	syncDenomBalance(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9", "nhash")
 	syncBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
 	streamBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
 	syncBalancesWithHeight(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9", 28208262)
-	syncBalancesWithHeight(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9", 28)
+}
+
+func syncDenomBalance(p *provenance.ProvenanceClient, address string, denom string) {
+	balance, err := p.GetBalance(context.Background(), address, denom)
+	if err != nil {
+		log.Fatalf("error getting account info: %v", err)
+	}
+	fmt.Println("balance:", balance)
 }
 
 func syncBalances(p *provenance.ProvenanceClient, address string) {

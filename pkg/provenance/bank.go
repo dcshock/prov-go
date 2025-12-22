@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"google.golang.org/grpc"
 )
 
 // GetBalances retrieves all balances for the given address and returns them as a slice.
@@ -16,12 +17,13 @@ import (
 // Parameters:
 //   - ctx: Context for cancellation and timeout control
 //   - address: The blockchain address to query balances for
+//   - opts: Optional gRPC call options (e.g., grpc.WaitForReady, custom timeouts, etc.)
 //
 // Returns:
 //   - []sdk.Coin: A slice containing all balances for the address
 //   - error: Returns an error if the query fails or context is cancelled
-func (c *ProvenanceClient) GetBalances(ctx context.Context, address string) ([]sdk.Coin, error) {
-	balancesChan, errChan := c.GetBalancesStream(ctx, address)
+func (c *ProvenanceClient) GetBalances(ctx context.Context, address string, opts ...grpc.CallOption) ([]sdk.Coin, error) {
+	balancesChan, errChan := c.GetBalancesStream(ctx, address, opts...)
 
 	balances := []sdk.Coin{}
 	for {
@@ -62,11 +64,12 @@ func (c *ProvenanceClient) GetBalances(ctx context.Context, address string) ([]s
 // Parameters:
 //   - ctx: Context for cancellation and timeout control
 //   - address: The blockchain address to query balances for
+//   - opts: Optional gRPC call options (e.g., grpc.WaitForReady, custom timeouts, etc.)
 //
 // Returns:
 //   - chan sdk.Coin: Channel that receives balance values. Closed when complete or on error.
 //   - chan error: Channel that receives errors. Closed when the goroutine exits.
-func (c *ProvenanceClient) GetBalancesStream(ctx context.Context, address string) (chan sdk.Coin, chan error) {
+func (c *ProvenanceClient) GetBalancesStream(ctx context.Context, address string, opts ...grpc.CallOption) (chan sdk.Coin, chan error) {
 	pageBufferSize := uint64(50) // Match the page size of the client request.
 
 	balancesChan := make(chan sdk.Coin, pageBufferSize)
@@ -85,7 +88,7 @@ func (c *ProvenanceClient) GetBalancesStream(ctx context.Context, address string
 					Limit:      pageBufferSize,
 					CountTotal: false,
 				},
-			})
+			}, opts...)
 
 			if err != nil {
 				if ctx.Err() != nil {
@@ -113,4 +116,40 @@ func (c *ProvenanceClient) GetBalancesStream(ctx context.Context, address string
 	}()
 
 	return balancesChan, errChan
+}
+
+// GetBalance retrieves the balance for a specific denom for the given address.
+// This is more efficient than GetBalances when you only need a single denom's balance.
+// The function respects context cancellation and will return ctx.Err() if the context
+// is cancelled.
+//
+// Parameters:
+//   - ctx: Context for cancellation and timeout control
+//   - address: The blockchain address to query balance for
+//   - denom: The denomination to query (e.g., "nhash", "usd")
+//   - opts: Optional gRPC call options (e.g., grpc.WaitForReady, custom timeouts, etc.)
+//
+// Returns:
+//   - sdk.Coin: The balance for the specified denom. If the denom doesn't exist for this address,
+//     returns a coin with amount 0 and the requested denom.
+//   - error: Returns an error if the query fails or context is cancelled
+func (c *ProvenanceClient) GetBalance(ctx context.Context, address, denom string, opts ...grpc.CallOption) (sdk.Coin, error) {
+	res, err := (*c.BankClient()).Balance(ctx, &banktypes.QueryBalanceRequest{
+		Address: address,
+		Denom:   denom,
+	}, opts...)
+
+	if err != nil {
+		if ctx.Err() != nil {
+			return sdk.Coin{}, ctx.Err()
+		}
+		return sdk.Coin{}, err
+	}
+
+	if res.Balance == nil {
+		// Return zero balance if not found
+		return sdk.NewInt64Coin(denom, 0), nil
+	}
+
+	return *res.Balance, nil
 }
