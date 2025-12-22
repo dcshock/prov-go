@@ -3,6 +3,7 @@ package provenance
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	"google.golang.org/grpc/metadata"
 
 	/// Blockchain Query Clients
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -300,6 +302,11 @@ func (c *ProvenanceClient) BroadcastTx(txBytes []byte) (*txtypes.BroadcastTxResp
 	}
 
 	return resp, nil
+}
+
+// Context Set Block Height
+func (c *ProvenanceClient) ContextWithBlockHeight(ctx context.Context, height int64) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, "x-cosmos-block-height", strconv.FormatInt(height, 10))
 }
 
 func connect(conf BlockchainConfigProvider) (*GRPCConnection, error) {

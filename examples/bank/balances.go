@@ -16,7 +16,9 @@ func main() {
 	defer p.Close()
 
 	syncBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
-	// streamBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
+	streamBalances(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9")
+	syncBalancesWithHeight(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9", 28208262)
+	syncBalancesWithHeight(p, "pb1pr93cqdh4kfnmrknhwa87a5qrwxw9k3dya4wr9", 28)
 }
 
 func syncBalances(p *provenance.ProvenanceClient, address string) {
@@ -38,7 +40,20 @@ func streamBalances(p *provenance.ProvenanceClient, address string) {
 			}
 			fmt.Println("balance:", balance)
 		case err := <-errChan:
-			log.Fatalf("error getting account info: %v", err)
+			if err != nil {
+				log.Fatalf("error getting account info: %v", err)
+			}
 		}
 	}
+}
+
+func syncBalancesWithHeight(p *provenance.ProvenanceClient, address string, height int64) {
+	// Block height is set in the context for the gRPC call
+	ctx := p.ContextWithBlockHeight(context.Background(), height)
+
+	balances, err := p.GetBalances(ctx, address)
+	if err != nil {
+		log.Fatalf("error getting account info: %v", err)
+	}
+	fmt.Println("balances:", balances)
 }
