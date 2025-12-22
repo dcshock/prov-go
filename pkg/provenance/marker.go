@@ -7,8 +7,6 @@ import (
 	"sync"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	marker "github.com/provenance-io/provenance/x/marker/types"
 	metadata "github.com/provenance-io/provenance/x/metadata/keeper"
 	"github.com/provenance-io/provenance/x/metadata/types"
@@ -64,7 +62,7 @@ func (c *ProvenanceClient) GetMarkerAddress(denom string) (*string, error) {
 }
 
 // GetAccountValue gets the value of an account by address/denom
-func (c *ProvenanceClient) GetAccountValue(addressOrDenom string) (*AccountValue, error) {
+func (c *ProvenanceClient) GetAccountValue(ctx context.Context, addressOrDenom string) (*AccountValue, error) {
 	// WaitGroup and Channels to handle results from the NAV queries
 	wg := sync.WaitGroup{}
 	totalChan := make(chan *AccountValue, 1)
@@ -87,21 +85,30 @@ func (c *ProvenanceClient) GetAccountValue(addressOrDenom string) (*AccountValue
 		close(totalChan)
 	}()
 
-	nextKey := []byte(nil)
-	for {
-		bankRes, err := (*c.BankClient()).AllBalances(context.Background(), &banktypes.QueryAllBalancesRequest{
-			Address: addressOrDenom,
-			Pagination: &query.PageRequest{
-				Key:        nextKey,
-				Limit:      100, // adjust as needed
-				CountTotal: false,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
+	// Use GetBalancesStream to take advantage of buffering and channels
+	balancesChan, errChan := c.GetBalancesStream(ctx, addressOrDenom)
 
-		for _, balance := range bankRes.Balances {
+	// Process balances as they stream in
+	for {
+		select {
+		case <-ctx.Done():
+			// Context cancelled - wait for existing work and return
+			wg.Wait()
+			close(resultsChan)
+			return nil, ctx.Err()
+		case balance, ok := <-balancesChan:
+			if !ok {
+				// Channel closed - all balances received
+				// wait for all the results to be added to the results channel
+				wg.Wait()
+				close(resultsChan)
+
+				// Get the total from the total channel
+				total := <-totalChan
+				return total, nil
+			}
+
+			// Process NFT balances
 			if strings.HasPrefix(balance.Denom, "nft") {
 				parts := strings.Split(balance.Denom, "/")
 				if len(parts) == 2 {
@@ -112,7 +119,7 @@ func (c *ProvenanceClient) GetAccountValue(addressOrDenom string) (*AccountValue
 						defer wg.Done()
 
 						var nav *types.NetAssetValue
-						nav, err = c.GetNAV(scopeId)
+						nav, err := c.GetNAV(scopeId)
 						if err != nil {
 							// Panic here since we don't want to report any results if there is an error
 							panic(err)
@@ -149,19 +156,11 @@ func (c *ProvenanceClient) GetAccountValue(addressOrDenom string) (*AccountValue
 					})
 				}
 			}
+		case err := <-errChan:
+			// Error from stream - wait for existing work and return error
+			wg.Wait()
+			close(resultsChan)
+			return nil, err
 		}
-
-		if len(bankRes.Pagination.NextKey) == 0 {
-			break
-		}
-		nextKey = bankRes.Pagination.NextKey
 	}
-
-	// wait for all the results to be added to the results channel
-	wg.Wait()
-	close(resultsChan)
-
-	// Get the total from the total channel
-	total := <-totalChan
-	return total, nil
 }
