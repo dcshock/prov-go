@@ -16,3 +16,13 @@ func (c *ProvenanceClient) GetBlockByHeight(height int64) (*tmtypes.GetBlockByHe
 
 	return res, nil
 }
+
+// Get the latest block height
+func (c *ProvenanceClient) GetLatestBlockHeight() (int64, error) {
+	res, err := (*c.TendermintClient()).GetLatestBlock(context.Background(), &tmtypes.GetLatestBlockRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	return res.SdkBlock.Header.Height, nil
+}
