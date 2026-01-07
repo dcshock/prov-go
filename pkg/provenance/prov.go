@@ -9,6 +9,7 @@ import (
 
 	nodetypes "cosmossdk.io/api/cosmos/base/node/v1beta1"
 	tendermint "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
+	stakingtypes "cosmossdk.io/api/cosmos/staking/v1beta1"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -51,6 +52,7 @@ type ProvenanceClient struct {
 	metadataClient   *meta.QueryClient
 	tendermintClient *tendermint.ServiceClient
 	nodeClient       *nodetypes.ServiceClient
+	stakingClient    *stakingtypes.QueryClient
 }
 
 func (c *ProvenanceClient) NextSequence() uint64 {
@@ -189,6 +191,18 @@ func (c *ProvenanceClient) NodeClient() *nodetypes.ServiceClient {
 		c.nodeClient = &qc
 	}
 	return c.nodeClient
+}
+
+// Staking client
+func (c *ProvenanceClient) StakingClient() *stakingtypes.QueryClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.stakingClient == nil {
+		qc := stakingtypes.NewQueryClient(c.Grpc.Conn)
+		c.stakingClient = &qc
+	}
+	return c.stakingClient
 }
 
 // Returns the account number and sequence for the given address
