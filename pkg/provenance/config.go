@@ -20,8 +20,13 @@ type BlockchainConfigProvider interface {
 	ChainID() string
 	GasPrice() int64
 	Denom() string
-	NodeUrl(url string)
 	Mainnet() bool
+
+	// Set the node url
+	NodeUrl(url string)
+
+	// Determine whether the url is using tls or not.
+	Secure(s bool)
 }
 
 // Verify that the BlockchainConfig implement the BlockchainConfigProvider interface
@@ -87,6 +92,10 @@ func (c *BlockchainConfig) Denom() string {
 
 func (c *BlockchainConfig) NodeUrl(url string) {
 	c.uri = url
+}
+
+func (c *BlockchainConfig) Secure(s bool) {
+	c.tls = s
 }
 
 func (c *BlockchainConfig) Mainnet() bool {

@@ -6,8 +6,8 @@ import (
 	tmtypes "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
 )
 
-func (c *ProvenanceClient) GetBlockByHeight(height int64) (*tmtypes.GetBlockByHeightResponse, error) {
-	res, err := (*c.TendermintClient()).GetBlockByHeight(context.Background(), &tmtypes.GetBlockByHeightRequest{
+func (c *ProvenanceClient) GetBlockByHeight(ctx context.Context, height int64) (*tmtypes.GetBlockByHeightResponse, error) {
+	res, err := (*c.TendermintClient()).GetBlockByHeight(ctx, &tmtypes.GetBlockByHeightRequest{
 		Height: height,
 	})
 	if err != nil {
@@ -18,8 +18,8 @@ func (c *ProvenanceClient) GetBlockByHeight(height int64) (*tmtypes.GetBlockByHe
 }
 
 // Get the latest block height
-func (c *ProvenanceClient) GetLatestBlockHeight() (*tmtypes.GetLatestBlockResponse, error) {
-	res, err := (*c.TendermintClient()).GetLatestBlock(context.Background(), &tmtypes.GetLatestBlockRequest{})
+func (c *ProvenanceClient) GetLatestBlock(ctx context.Context) (*tmtypes.GetLatestBlockResponse, error) {
+	res, err := (*c.TendermintClient()).GetLatestBlock(ctx, &tmtypes.GetLatestBlockRequest{})
 	if err != nil {
 		return nil, err
 	}
