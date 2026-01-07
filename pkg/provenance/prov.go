@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	nodetypes "cosmossdk.io/api/cosmos/base/node/v1beta1"
 	tendermint "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
 	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -49,6 +50,7 @@ type ProvenanceClient struct {
 	markerClient     *marker.QueryClient
 	metadataClient   *meta.QueryClient
 	tendermintClient *tendermint.ServiceClient
+	nodeClient       *nodetypes.ServiceClient
 }
 
 func (c *ProvenanceClient) NextSequence() uint64 {
@@ -175,6 +177,18 @@ func (c *ProvenanceClient) TendermintClient() *tendermint.ServiceClient {
 		c.tendermintClient = &qc
 	}
 	return c.tendermintClient
+}
+
+// Node client
+func (c *ProvenanceClient) NodeClient() *nodetypes.ServiceClient {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.nodeClient == nil {
+		qc := nodetypes.NewServiceClient(c.Grpc.Conn)
+		c.nodeClient = &qc
+	}
+	return c.nodeClient
 }
 
 // Returns the account number and sequence for the given address
