@@ -262,18 +262,14 @@ func (c *ProvenanceClient) SignTx(msg []sdk.Msg, privKeyBytes []byte, accountNum
 		return nil, err
 	}
 
-	gas, err := SimulateTx(c.Grpc.Conn, txConfig, txBuilder)
+	feeAmount, _, err := SimulateTx(c.Grpc.Conn, txConfig, txBuilder)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Gas used: %d\n", gas)
+	fmt.Printf("Fee amount: %d\n", feeAmount)
 
 	// Update the gas limit to be 50% more than the estimated gas
-	gasLimit := uint64(float64(gas) * 1.5)
-	txBuilder.SetGasLimit(gasLimit)
-
-	feeAmt := int64(float64(gasLimit) * float64(c.BcConfig.GasPrice()))
-	fee := sdk.NewCoins(sdk.NewInt64Coin(c.BcConfig.Denom(), feeAmt+additionalFee))
+	fee := sdk.NewCoins(sdk.NewInt64Coin(c.BcConfig.Denom(), int64(feeAmount)+additionalFee))
 	txBuilder.SetFeeAmount(fee)
 
 	sigs = []signing.SignatureV2{}

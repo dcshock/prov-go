@@ -10,11 +10,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-// SimulateTx returns the estimated gas for the transaction
-func SimulateTx(grpcConn *grpc.ClientConn, txConfig client.TxConfig, txBuilder client.TxBuilder) (uint64, error) {
+// SimulateTx returns the estimated fee and gas for the transaction
+func SimulateTx(grpcConn *grpc.ClientConn, txConfig client.TxConfig, txBuilder client.TxBuilder) (uint64, uint64, error) {
 	txBytes, err := txConfig.TxEncoder()(txBuilder.GetTx())
 	if err != nil {
-		return 0, fmt.Errorf("failed to encode tx: %w", err)
+		return 0, 0, fmt.Errorf("failed to encode tx: %w", err)
 	}
 
 	txClient := txtypes.NewServiceClient(grpcConn)
@@ -23,8 +23,8 @@ func SimulateTx(grpcConn *grpc.ClientConn, txConfig client.TxConfig, txBuilder c
 		TxBytes: txBytes,
 	})
 	if err != nil {
-		return 0, fmt.Errorf("simulate tx failed: %w", err)
+		return 0, 0, fmt.Errorf("simulate tx failed: %w", err)
 	}
 
-	return resp.GasInfo.GasUsed, nil
+	return resp.GasInfo.GasUsed, resp.GasInfo.GasWanted, nil
 }

@@ -20,9 +20,9 @@ func (c *ProvenanceClient) CreateScope(scopeSpecUUID, scopeUUID string) (*tx.Bro
 		return nil, fmt.Errorf("scope already exists")
 	}
 
-	msg := NewScope(c.Address, scopeSpecUUID, scopeUUID) // requires 10_000_000_000 additional fee
+	msg := NewScope(c.Address, scopeSpecUUID, scopeUUID)
 
-	txBz, err := c.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 10_000_000_000)
+	txBz, err := c.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tx: %w", err)
 	}
