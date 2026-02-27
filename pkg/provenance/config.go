@@ -51,7 +51,7 @@ func NewTestnetConfig() *BlockchainConfig {
 		tls:           true,
 		addressPrefix: "tp",
 		publicPrefix:  "tppub",
-		coinType:      1,
+		coinType:      505,
 		chainID:       "pio-testnet-1",
 		gasPrice:      1,
 		denom:         "nhash",
