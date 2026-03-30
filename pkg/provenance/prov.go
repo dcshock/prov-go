@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	nodetypes "cosmossdk.io/api/cosmos/base/node/v1beta1"
 	tendermint "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
@@ -326,6 +327,29 @@ func (c *ProvenanceClient) BroadcastTx(txBytes []byte) (*txtypes.BroadcastTxResp
 	}
 
 	return resp, nil
+}
+
+// Wait on a broadcasted tx to complete
+func (c *ProvenanceClient) WaitOnTx(txHash string) (*txtypes.GetTxResponse, error) {
+	// return an error if there is no tx hash provided
+	if txHash == "" {
+		return nil, fmt.Errorf("no tx hash provided")
+	}
+
+	txClient := txtypes.NewServiceClient(c.Grpc.Conn)
+
+	// Poll until a tx is indexed or ~20s elapses; transient GetTx RPC errors retry.
+	for i := 0; i < 10; i++ {
+		resp, err := txClient.GetTx(context.Background(), &txtypes.GetTxRequest{
+			Hash: txHash,
+		})
+		if err == nil && resp != nil && resp.TxResponse != nil {
+			return resp, nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	return nil, fmt.Errorf("get tx: gave up after timeout for hash %s", txHash)
 }
 
 // Context Set Block Height

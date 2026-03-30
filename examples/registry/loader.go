@@ -187,7 +187,18 @@ func loadCmd(args []string) {
 		if err != nil {
 			log.Fatalf("error executing RegistryBulkUpdate (batch %d-%d): %v", i+1, end, err)
 		}
+
+		// Wait for the tx to be included in a block
+		log.Printf("Waiting for tx %s to be included in a block...\n", resp.TxResponse.TxHash)
+		txResp, err := p.WaitOnTx(resp.TxResponse.TxHash)
+		if err != nil {
+			log.Fatalf("error waiting on tx: %v", err)
+		}
+
+		if txResp.TxResponse == nil || txResp.TxResponse.Code != 0 {
+			log.Fatalf("Failed to find tx in block for tx hash: %s", resp.TxResponse.TxHash)
+		}
+
 		fmt.Printf("RegistryBulkUpdate batch %d-%d: %s\n", i+1, end, resp)
 	}
 }
-
