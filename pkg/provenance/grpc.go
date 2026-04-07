@@ -1,12 +1,14 @@
 package provenance
 
 import (
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
+	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	attrtypes "github.com/provenance-io/provenance/x/attribute/types"
 	marker "github.com/provenance-io/provenance/x/marker/types"
@@ -57,6 +59,8 @@ func Codec() *codec.ProtoCodec {
 	banktypes.RegisterInterfaces(reg)
 	attrtypes.RegisterInterfaces(reg)
 	registry.RegisterInterfaces(reg)
+	authztypes.RegisterInterfaces(reg)
+	wasmtypes.RegisterInterfaces(reg)
 
 	cdc := codec.NewProtoCodec(reg)
 	return cdc
