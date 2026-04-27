@@ -165,9 +165,14 @@ func (c *Client) broadcastAndWait(ctx context.Context, msgs []sdk.Msg) (*sdk.TxR
 }
 
 func (c *Client) execute(ctx context.Context, sender string, msgJSON []byte, funds sdk.Coins) (*sdk.TxResponse, *tendermint.GetBlockByHeightResponse, error) {
+	return c.executeOnContract(ctx, sender, c.ContractAddr, msgJSON, funds)
+}
+
+// executeOnContract broadcasts MsgExecuteContract on an arbitrary CosmWasm address (pool, CW20 repo, etc.).
+func (c *Client) executeOnContract(ctx context.Context, sender, contractAddr string, msgJSON []byte, funds sdk.Coins) (*sdk.TxResponse, *tendermint.GetBlockByHeightResponse, error) {
 	exec := &wasmtypes.MsgExecuteContract{
 		Sender:   sender,
-		Contract: c.ContractAddr,
+		Contract: contractAddr,
 		Msg:      wasmtypes.RawContractMessage(msgJSON),
 		Funds:    funds,
 	}
