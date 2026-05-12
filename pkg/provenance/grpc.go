@@ -10,6 +10,7 @@ import (
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authztypes "github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	grouptypes "github.com/cosmos/cosmos-sdk/x/group"
 	attrtypes "github.com/provenance-io/provenance/x/attribute/types"
 	marker "github.com/provenance-io/provenance/x/marker/types"
 	meta "github.com/provenance-io/provenance/x/metadata/types"
@@ -60,6 +61,7 @@ func Codec() *codec.ProtoCodec {
 	attrtypes.RegisterInterfaces(reg)
 	registry.RegisterInterfaces(reg)
 	authztypes.RegisterInterfaces(reg)
+	grouptypes.RegisterInterfaces(reg)
 	wasmtypes.RegisterInterfaces(reg)
 
 	cdc := codec.NewProtoCodec(reg)
