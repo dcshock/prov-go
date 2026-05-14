@@ -66,6 +66,22 @@ func (c *ProvenanceClient) NextSequence() uint64 {
 	return currentSequence
 }
 
+// ResetSequence sets c.Sequence to the on-chain sequence from GetAccountInfo for this client's address.
+// It must not hold c.mu while querying: GetAccountInfo uses AuthClient, which also locks c.mu.
+func (c *ProvenanceClient) ResetSequence() (accountNumber uint64, sequence uint64, err error) {
+	if c.Address == "" {
+		return 0, 0, fmt.Errorf("provenance client has no address")
+	}
+	accountNumber, sequence, err = c.GetAccountInfo(c.Address)
+	if err != nil {
+		return 0, 0, err
+	}
+	c.mu.Lock()
+	c.Sequence = sequence
+	c.mu.Unlock()
+	return accountNumber, sequence, nil
+}
+
 func NewProvenanceClient(blockchainConfig BlockchainConfigProvider, mnemonicFilePath *string) (*ProvenanceClient, error) {
 	grpc, err := connect(blockchainConfig)
 	if err != nil {
@@ -92,12 +108,12 @@ func NewProvenanceClient(blockchainConfig BlockchainConfigProvider, mnemonicFile
 		}
 
 		address := sdk.AccAddress(config.PrivKey.PubKey().Address()).String()
-		accountNumber, sequence, err := config.GetAccountInfo(address)
+		config.Address = address
+		accountNumber, sequence, err := config.ResetSequence()
 		if err != nil {
 			return nil, fmt.Errorf("error getting account info: %w", err)
 		}
 
-		config.Address = address
 		config.AccountNumber = accountNumber
 		config.Sequence = sequence
 	}
@@ -265,6 +281,9 @@ func (c *ProvenanceClient) SignTx(msg []sdk.Msg, privKeyBytes []byte, accountNum
 
 	feeAmount, _, err := SimulateTx(c.Grpc.Conn, txConfig, txBuilder)
 	if err != nil {
+		// Reset the sequence since we know that this one failed, and will cause downstream failures
+		// in sequence number alignment.
+		c.ResetSequence()
 		return nil, err
 	}
 	fmt.Printf("Fee amount: %d\n", feeAmount)
