@@ -239,6 +239,15 @@ func (c *ProvenanceClient) GetAccountInfo(address string) (uint64, uint64, error
 	return baseAcc.AccountNumber, baseAcc.Sequence, nil
 }
 
+// SignBytes signs msg with the client's private key and returns the raw signature.
+// It does not build or broadcast a Provenance transaction.
+func (c *ProvenanceClient) SignBytes(msg []byte) ([]byte, error) {
+	if c.PrivKey == nil {
+		return nil, fmt.Errorf("provenance client has no private key")
+	}
+	return c.PrivKey.Sign(msg)
+}
+
 func (c *ProvenanceClient) SignTx(msg []sdk.Msg, privKeyBytes []byte, accountNumber, sequence uint64, additionalFee int64) ([]byte, error) {
 	ctx := context.Background()
 
