@@ -11,9 +11,7 @@ import (
 	nodetypes "cosmossdk.io/api/cosmos/base/node/v1beta1"
 	tendermint "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
 	stakingtypes "cosmossdk.io/api/cosmos/staking/v1beta1"
-	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"google.golang.org/grpc/metadata"
@@ -27,14 +25,12 @@ import (
 	meta "github.com/provenance-io/provenance/x/metadata/types"
 
 	// Signing packages
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
-	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 type ProvenanceClient struct {
 	Grpc          *GRPCConnection
-	PrivKey       *secp256k1.PrivKey
+	Signer        Signer
 	BcConfig      BlockchainConfigProvider
 	Cdc           *codec.ProtoCodec
 	Address       string
@@ -101,27 +97,60 @@ func NewProvenanceClient(blockchainConfig BlockchainConfigProvider, mnemonicFile
 			return nil, fmt.Errorf("error reading mnemonic: %w", err)
 		}
 
-		// Derive the private key from the mnemonic
-		config.PrivKey, err = PrivKeyFromMnemonic(blockchainConfig, *mnemonic)
+		privKey, err := PrivKeyFromMnemonic(blockchainConfig, *mnemonic)
 		if err != nil {
 			return nil, fmt.Errorf("error deriving key from mnemonic: %w", err)
 		}
-
-		address := sdk.AccAddress(config.PrivKey.PubKey().Address()).String()
-		config.Address = address
-		accountNumber, sequence, err := config.ResetSequence()
+		signer, err := NewPrivKeySigner(privKey)
 		if err != nil {
-			return nil, fmt.Errorf("error getting account info: %w", err)
+			return nil, err
 		}
-
-		config.AccountNumber = accountNumber
-		config.Sequence = sequence
+		if err := config.SetSigner(signer); err != nil {
+			return nil, err
+		}
 	}
 
 	pool, _ := ants.NewPool(50)
 	config.Pool = pool
 
 	return &config, nil
+}
+
+// NewProvenanceClientWithSigner connects like NewProvenanceClient, then binds
+// signer. The signer supplies the account address and signatures, so private
+// key bytes are not required.
+func NewProvenanceClientWithSigner(blockchainConfig BlockchainConfigProvider, signer Signer) (*ProvenanceClient, error) {
+	client, err := NewProvenanceClient(blockchainConfig, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := client.SetSigner(signer); err != nil {
+		client.Close()
+		return nil, err
+	}
+	return client, nil
+}
+
+// SetSigner binds signer and loads that account's number and sequence.
+// Address is taken from the signer (or from its public key when Address is empty).
+func (c *ProvenanceClient) SetSigner(signer Signer) error {
+	if signer == nil {
+		return fmt.Errorf("signer is nil")
+	}
+	addr, err := signerAccountAddress(signer)
+	if err != nil {
+		return err
+	}
+	c.Signer = signer
+	c.Address = addr
+
+	accountNumber, sequence, err := c.ResetSequence()
+	if err != nil {
+		return fmt.Errorf("error getting account info: %w", err)
+	}
+	c.AccountNumber = accountNumber
+	c.Sequence = sequence
+	return nil
 }
 
 func (c *ProvenanceClient) Close() {
@@ -239,16 +268,24 @@ func (c *ProvenanceClient) GetAccountInfo(address string) (uint64, uint64, error
 	return baseAcc.AccountNumber, baseAcc.Sequence, nil
 }
 
-// SignBytes signs msg with the client's private key and returns the raw signature.
+// SignBytes signs msg with the client's Signer and returns the raw signature.
 // It does not build or broadcast a Provenance transaction.
 func (c *ProvenanceClient) SignBytes(msg []byte) ([]byte, error) {
-	if c.PrivKey == nil {
-		return nil, fmt.Errorf("provenance client has no private key")
+	if c.Signer == nil {
+		return nil, fmt.Errorf("provenance client has no signer")
 	}
-	return c.PrivKey.Sign(msg)
+	return c.Signer.Sign(msg)
 }
 
-func (c *ProvenanceClient) SignTx(msg []sdk.Msg, privKeyBytes []byte, accountNumber, sequence uint64, additionalFee int64) ([]byte, error) {
+func (c *ProvenanceClient) SignTx(msg []sdk.Msg, accountNumber, sequence uint64, additionalFee int64) ([]byte, error) {
+	if c.Signer == nil {
+		return nil, fmt.Errorf("provenance client has no signer")
+	}
+	pubKey := c.Signer.PubKey()
+	if pubKey == nil {
+		return nil, fmt.Errorf("signer has no public key")
+	}
+
 	ctx := context.Background()
 
 	txConfig := NewTxConfig()
@@ -259,32 +296,19 @@ func (c *ProvenanceClient) SignTx(msg []sdk.Msg, privKeyBytes []byte, accountNum
 		return nil, err
 	}
 
-	// Read the private key from the bytes
-	privKey := &secp256k1.PrivKey{Key: privKeyBytes}
-	privs := []cryptotypes.PrivKey{privKey}
-	fmt.Println("Public key:", privKey.PubKey().Address())
-	fmt.Println("Public key string:", sdk.AccAddress(privKey.PubKey().Address()).String())
+	fmt.Println("Signer address:", c.Address)
 
-	// Create a simple signature placeholder
-	// In a real implementation, you would:
-	// 1. Get the sign bytes from the transaction
-	// 2. Sign those bytes with your private key
-	// 3. Create a proper SignatureV2 with the signature and public key
-	var sigs []signing.SignatureV2
-	for _, priv := range privs {
-		sigData := signing.SignatureV2{
-			PubKey: priv.PubKey(), // Set to your public key
-			Data: &signing.SingleSignatureData{
-				SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
-				Signature: nil,
-			},
-			Sequence: sequence,
-		}
-		sigs = append(sigs, sigData)
+	// SIGN_MODE_DIRECT sign bytes include the signer info, so an empty
+	// signature is set before simulation and before the real signature.
+	emptySig := signing.SignatureV2{
+		PubKey: pubKey,
+		Data: &signing.SingleSignatureData{
+			SignMode:  signing.SignMode_SIGN_MODE_DIRECT,
+			Signature: nil,
+		},
+		Sequence: sequence,
 	}
-
-	err := txBuilder.SetSignatures(sigs...)
-	if err != nil {
+	if err := txBuilder.SetSignatures(emptySig); err != nil {
 		return nil, err
 	}
 
@@ -301,23 +325,11 @@ func (c *ProvenanceClient) SignTx(msg []sdk.Msg, privKeyBytes []byte, accountNum
 	fee := sdk.NewCoins(sdk.NewInt64Coin(c.BcConfig.Denom(), int64(feeAmount)+additionalFee))
 	txBuilder.SetFeeAmount(fee)
 
-	sigs = []signing.SignatureV2{}
-	for _, priv := range privs {
-		signerData := xauthsigning.SignerData{
-			ChainID:       c.BcConfig.ChainID(),
-			AccountNumber: accountNumber,
-			Sequence:      sequence,
-		}
-
-		sigV2, err := tx.SignWithPrivKey(ctx, signing.SignMode_SIGN_MODE_DIRECT, signerData, txBuilder, priv, txConfig, sequence)
-		if err != nil {
-			return nil, err
-		}
-		sigs = append(sigs, sigV2)
+	sigV2, err := signWithSigner(ctx, txConfig, txBuilder, c.Signer, c.BcConfig.ChainID(), accountNumber, sequence)
+	if err != nil {
+		return nil, err
 	}
-
-	// Set the signature
-	if err := txBuilder.SetSignatures(sigs...); err != nil {
+	if err := txBuilder.SetSignatures(sigV2); err != nil {
 		return nil, err
 	}
 

@@ -43,9 +43,9 @@ func (b *BaseClient) PrimarySignerAddress() string {
 	return b.Prov.Address
 }
 
-// RequireSigner returns an error if the provenance client has no private key.
+// RequireSigner returns an error if the provenance client has no signer.
 func (b *BaseClient) RequireSigner() error {
-	if b.Prov == nil || b.Prov.PrivKey == nil {
+	if b.Prov == nil || b.Prov.Signer == nil {
 		return fmt.Errorf("demoprime/contract: provenance client has no signer")
 	}
 	return nil
@@ -87,7 +87,7 @@ func (b *BaseClient) BroadcastMsgs(ctx context.Context, msgs []sdk.Msg) (*sdk.Tx
 		return nil, err
 	}
 	seq := b.Prov.NextSequence()
-	txBz, err := b.Prov.SignTx(msgs, b.Prov.PrivKey.Bytes(), b.Prov.AccountNumber, seq, 0)
+	txBz, err := b.Prov.SignTx(msgs, b.Prov.AccountNumber, seq, 0)
 	if err != nil {
 		return nil, fmt.Errorf("demoprime/contract: sign tx: %w", err)
 	}

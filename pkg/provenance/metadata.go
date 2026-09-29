@@ -22,7 +22,7 @@ func (c *ProvenanceClient) CreateScope(scopeSpecUUID, scopeUUID string) (*tx.Bro
 
 	msg := NewScope(c.Address, scopeSpecUUID, scopeUUID)
 
-	txBz, err := c.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
+	txBz, err := c.SignTx([]sdk.Msg{msg}, c.AccountNumber, c.NextSequence(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tx: %w", err)
 	}
@@ -39,7 +39,7 @@ func (c *ProvenanceClient) CreateScope(scopeSpecUUID, scopeUUID string) (*tx.Bro
 func (c *ProvenanceClient) DeleteScope(scopeUuid string) (*tx.BroadcastTxResponse, error) {
 	msg := NewDeleteScope(c.Address, scopeUuid)
 
-	txBz, err := c.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
+	txBz, err := c.SignTx([]sdk.Msg{msg}, c.AccountNumber, c.NextSequence(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tx: %w", err)
 	}
@@ -62,7 +62,7 @@ func (c *ProvenanceClient) UpdateRecords(session *meta.MsgWriteSessionRequest, r
 		msgs = append(msgs, &record)
 	}
 
-	txBz, err := c.SignTx(msgs, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
+	txBz, err := c.SignTx(msgs, c.AccountNumber, c.NextSequence(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tx: %w", err)
 	}

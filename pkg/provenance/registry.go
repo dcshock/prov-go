@@ -14,7 +14,7 @@ func (c *ProvenanceClient) RegistryBulkUpdate(entries []registry.RegistryEntry) 
 		Entries: entries,
 	}
 
-	txBz, err := c.SignTx([]sdk.Msg{msg}, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), 0)
+	txBz, err := c.SignTx([]sdk.Msg{msg}, c.AccountNumber, c.NextSequence(), 0)
 	if err != nil {
 		return nil, fmt.Errorf("error creating tx: %w", err)
 	}
