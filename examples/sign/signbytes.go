@@ -41,7 +41,7 @@ func main() {
 		log.Fatalf("error signing bytes: %v", err)
 	}
 
-	pubKeyBytes := p.PrivKey.PubKey().Bytes()
+	pubKeyBytes := p.Signer.PubKey().Bytes()
 
 	fmt.Printf("address:          %s\n", p.Address)
 	fmt.Printf("public key (hex): %s\n", hex.EncodeToString(pubKeyBytes))

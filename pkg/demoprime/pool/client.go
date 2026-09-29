@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
-	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	tendermint "cosmossdk.io/api/cosmos/base/tendermint/v1beta1"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 
@@ -135,7 +135,7 @@ func (c *Client) broadcastAndWait(ctx context.Context, msgs []sdk.Msg) (*sdk.TxR
 		return nil, nil, err
 	}
 	seq := c.Prov.NextSequence()
-	txBz, err := c.Prov.SignTx(msgs, c.Prov.PrivKey.Bytes(), c.Prov.AccountNumber, seq, 0)
+	txBz, err := c.Prov.SignTx(msgs, c.Prov.AccountNumber, seq, 0)
 	if err != nil {
 		return nil, nil, fmt.Errorf("pool: sign tx: %w", err)
 	}

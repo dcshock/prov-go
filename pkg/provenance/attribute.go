@@ -57,7 +57,7 @@ func (c *ProvenanceClient) AddAttributes(attrs []Attribute) (chan *tx.BroadcastT
 			if len(buff) == 75 || (closed && len(buff) > 0) {
 				// Attribute additions require 10_000_000_000 additional fee
 				txFee := int64(10_000_000_000) * int64(len(buff))
-				txBz, err := c.SignTx(buff, c.PrivKey.Bytes(), c.AccountNumber, c.NextSequence(), txFee)
+				txBz, err := c.SignTx(buff, c.AccountNumber, c.NextSequence(), txFee)
 
 				// Clear the buffer
 				buff = []sdk.Msg{}
