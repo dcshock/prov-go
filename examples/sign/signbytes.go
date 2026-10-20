@@ -41,6 +41,17 @@ func main() {
 		log.Fatalf("error signing bytes: %v", err)
 	}
 
+	// base64 decode the msg string to bytes
+	msgBytes, err := base64.StdEncoding.DecodeString(*msg)
+	if err != nil {
+		log.Fatalf("error decoding message: %v", err)
+	}
+	// sign the message bytes
+	sig2, err := p.SignBytes(msgBytes)
+	if err != nil {
+		log.Fatalf("error signing bytes: %v", err)
+	}
+
 	pubKeyBytes := p.PrivKey.PubKey().Bytes()
 
 	fmt.Printf("address:          %s\n", p.Address)
@@ -49,4 +60,5 @@ func main() {
 	fmt.Printf("message:          %q\n", *msg)
 	fmt.Printf("signature (hex):  %s\n", hex.EncodeToString(sig))
 	fmt.Printf("signature (b64):  %s\n", base64.StdEncoding.EncodeToString(sig))
+	fmt.Printf("signature2 (b64):  %s\n", base64.StdEncoding.EncodeToString(sig2))
 }
