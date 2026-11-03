@@ -13,6 +13,7 @@ import (
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
@@ -35,7 +36,7 @@ func (s *fakeTxService) GetTx(_ context.Context, req *txtypes.GetTxRequest) (*tx
 	return &txtypes.GetTxResponse{TxResponse: &sdk.TxResponse{TxHash: s.hash, Height: 42, Code: 0}}, nil
 }
 
-func testClientWithTxServer(t *testing.T, svc *fakeTxService) *ProvenanceClient {
+func testClientWithTxServer(t *testing.T, svc txtypes.ServiceServer) *ProvenanceClient {
 	t.Helper()
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -95,5 +96,49 @@ func TestWaitOnTxRejectsEmptyHash(t *testing.T) {
 	_, err := (&ProvenanceClient{}).WaitOnTx("")
 	if err == nil || !strings.Contains(err.Error(), "no tx hash") {
 		t.Fatalf("got %v", err)
+	}
+}
+
+// slowTxService waits, then returns a successful tx. It ignores cancellation so a client
+// that does not bound GetTx observes a late success.
+type slowTxService struct {
+	txtypes.UnimplementedServiceServer
+	delay time.Duration
+}
+
+func (s *slowTxService) GetTx(_ context.Context, req *txtypes.GetTxRequest) (*txtypes.GetTxResponse, error) {
+	time.Sleep(s.delay)
+	return &txtypes.GetTxResponse{TxResponse: &sdk.TxResponse{TxHash: req.Hash, Height: 9, Code: 0}}, nil
+}
+
+func waitConnReady(t *testing.T, conn *grpc.ClientConn) {
+	t.Helper()
+	conn.Connect()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	for {
+		state := conn.GetState()
+		if state == connectivity.Ready {
+			return
+		}
+		if !conn.WaitForStateChange(ctx, state) {
+			t.Fatalf("grpc conn not ready: %s", conn.GetState())
+		}
+	}
+}
+
+func TestWaitOnTxStalledRPCStopsAtBudget(t *testing.T) {
+	const hash = "STALL"
+	c := testClientWithTxServer(t, &slowTxService{delay: 400 * time.Millisecond})
+	waitConnReady(t, c.Grpc.Conn)
+
+	start := time.Now()
+	_, err := c.waitOnTx(context.Background(), hash, 30*time.Millisecond, time.Second)
+	elapsed := time.Since(start)
+	if err == nil || !strings.Contains(err.Error(), hash) {
+		t.Fatalf("got %v after %s", err, elapsed)
+	}
+	if elapsed > 200*time.Millisecond {
+		t.Fatalf("stalled GetTx returned after %s, want the 30ms budget", elapsed)
 	}
 }

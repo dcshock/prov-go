@@ -378,12 +378,16 @@ func (c *ProvenanceClient) waitOnTx(ctx context.Context, txHash string, wait, po
 		return nil, fmt.Errorf("get tx: gRPC connection not available")
 	}
 
+	// Bound the RPCs and the poll sleeps. Checking the clock after GetTx returns
+	// leaves a stalled call running past the budget.
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
 	txClient := txtypes.NewServiceClient(c.Grpc.Conn)
-	deadline := time.Now().Add(wait)
 	var lastErr error
 	for {
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, waitOnTxGaveUp(txHash, err, lastErr)
 		}
 		resp, err := txClient.GetTx(ctx, &txtypes.GetTxRequest{Hash: txHash})
 		if err == nil && resp != nil && resp.TxResponse != nil {
@@ -392,23 +396,24 @@ func (c *ProvenanceClient) waitOnTx(ctx context.Context, txHash string, wait, po
 		if err != nil {
 			lastErr = err
 			if ctx.Err() != nil {
-				return nil, ctx.Err()
+				return nil, waitOnTxGaveUp(txHash, ctx.Err(), lastErr)
 			}
-		}
-		if !time.Now().Before(deadline) {
-			if lastErr != nil {
-				return nil, fmt.Errorf("get tx: gave up after timeout for hash %s: %w", txHash, lastErr)
-			}
-			return nil, fmt.Errorf("get tx: gave up after timeout for hash %s", txHash)
 		}
 		timer := time.NewTimer(poll)
 		select {
 		case <-ctx.Done():
 			timer.Stop()
-			return nil, ctx.Err()
+			return nil, waitOnTxGaveUp(txHash, ctx.Err(), lastErr)
 		case <-timer.C:
 		}
 	}
+}
+
+func waitOnTxGaveUp(txHash string, cause, lastErr error) error {
+	if lastErr != nil {
+		return fmt.Errorf("get tx: gave up after timeout for hash %s: %w", txHash, lastErr)
+	}
+	return fmt.Errorf("get tx: gave up after timeout for hash %s: %w", txHash, cause)
 }
 
 // Context Set Block Height
