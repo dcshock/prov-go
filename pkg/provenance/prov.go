@@ -357,27 +357,58 @@ func (c *ProvenanceClient) BroadcastTx(txBytes []byte) (*txtypes.BroadcastTxResp
 	return resp, nil
 }
 
-// Wait on a broadcasted tx to complete
+const (
+	// GetTx stays NotFound until the tx is committed and indexed. Mainnet blocks are ~5s;
+	// 45s covers several slow blocks plus indexer lag.
+	waitOnTxTimeout = 45 * time.Second
+	waitOnTxPoll    = 2 * time.Second
+)
+
+// WaitOnTx polls until txHash is indexed or waitOnTxTimeout elapses.
+// Transient GetTx RPC errors are retried. The returned error includes the last RPC error.
 func (c *ProvenanceClient) WaitOnTx(txHash string) (*txtypes.GetTxResponse, error) {
-	// return an error if there is no tx hash provided
+	return c.waitOnTx(context.Background(), txHash, waitOnTxTimeout, waitOnTxPoll)
+}
+
+func (c *ProvenanceClient) waitOnTx(ctx context.Context, txHash string, wait, poll time.Duration) (*txtypes.GetTxResponse, error) {
 	if txHash == "" {
 		return nil, fmt.Errorf("no tx hash provided")
 	}
+	if c == nil || c.Grpc == nil || c.Grpc.Conn == nil {
+		return nil, fmt.Errorf("get tx: gRPC connection not available")
+	}
 
 	txClient := txtypes.NewServiceClient(c.Grpc.Conn)
-
-	// Poll until a tx is indexed or ~20s elapses; transient GetTx RPC errors retry.
-	for i := 0; i < 10; i++ {
-		resp, err := txClient.GetTx(context.Background(), &txtypes.GetTxRequest{
-			Hash: txHash,
-		})
+	deadline := time.Now().Add(wait)
+	var lastErr error
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		resp, err := txClient.GetTx(ctx, &txtypes.GetTxRequest{Hash: txHash})
 		if err == nil && resp != nil && resp.TxResponse != nil {
 			return resp, nil
 		}
-		time.Sleep(2 * time.Second)
+		if err != nil {
+			lastErr = err
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+		}
+		if !time.Now().Before(deadline) {
+			if lastErr != nil {
+				return nil, fmt.Errorf("get tx: gave up after timeout for hash %s: %w", txHash, lastErr)
+			}
+			return nil, fmt.Errorf("get tx: gave up after timeout for hash %s", txHash)
+		}
+		timer := time.NewTimer(poll)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
 	}
-
-	return nil, fmt.Errorf("get tx: gave up after timeout for hash %s", txHash)
 }
 
 // Context Set Block Height
